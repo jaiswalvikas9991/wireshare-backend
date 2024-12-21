@@ -1,5 +1,4 @@
 use std::{collections::HashMap, sync::Arc};
-
 use axum::{
     extract::{
         ws::{Message, WebSocket},
@@ -14,6 +13,8 @@ use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use shuttle_axum::ShuttleAxum;
 use tokio::sync::Mutex;
+use tokio::time::{self, Duration};
+
 
 const ALPHABET_AND_NUMBERS: [char; 36] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
@@ -28,6 +29,19 @@ async fn main() -> ShuttleAxum {
     let state = Arc::new(Mutex::new(State {
         users: HashMap::new(),
     }));
+    let state_clone = state.clone();
+
+    tokio::spawn(async move {
+        let mut interval = time::interval(Duration::from_secs(30));
+        loop {
+            interval.tick().await;
+            let mut state = state_clone.lock().await;
+            for (_, user) in state.users.iter_mut() {
+                user.send(Message::Text("heartbeat".to_string())).await.unwrap();
+            }
+        }
+    });
+
 
     let router = Router::new()
         .route("/", get(websocket_handler))
