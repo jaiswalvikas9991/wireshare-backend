@@ -45,8 +45,8 @@ async fn main() {
     });
 
     let router = Router::new()
-        .route("/ws/", get(websocket_handler))
-        .route("/", get(|| async { "ok" }))
+        .route("/", get(websocket_handler))
+        .route("/health", get(|| async { "ok" }))
         .layer(Extension(state));
 
     println!("Router initialized");
@@ -96,7 +96,10 @@ async fn websocket(stream: WebSocket, state: Arc<Mutex<State>>) {
     let state_clone = state.clone();
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(json))) = receiver.next().await {
-            let msg = serde_json::from_str::<Msg>(&json).unwrap();
+            let Ok(msg) = serde_json::from_str::<Msg>(&json) else {
+                println!("Error while parsing json msg");
+                return;
+            };
             if let Some(user) = state_clone.lock().await.users.get_mut(&msg.to_user_id) {
                 if user.send(Message::Text(msg.msg)).await.is_err() {
                     println!("Error while sending msg");
@@ -110,7 +113,7 @@ async fn websocket(stream: WebSocket, state: Arc<Mutex<State>>) {
             msg_type: 0,
             user_id: &user_id,
         };
-        serde_json::to_string(&msg).unwrap()
+        serde_json::to_string(&msg).expect("This is a bug in the code")
     };
     if state
         .lock()
