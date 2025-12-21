@@ -98,7 +98,9 @@ async fn websocket(stream: WebSocket, state: Arc<Mutex<State>>) {
         while let Some(Ok(Message::Text(json))) = receiver.next().await {
             let msg = serde_json::from_str::<Msg>(&json).unwrap();
             if let Some(user) = state_clone.lock().await.users.get_mut(&msg.to_user_id) {
-                user.send(Message::Text(msg.msg)).await.unwrap();
+                if user.send(Message::Text(msg.msg)).await.is_err() {
+                    println!("Error while sending msg");
+                }
             }
         }
     });
