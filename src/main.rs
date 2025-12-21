@@ -37,16 +37,19 @@ async fn main() {
             interval.tick().await;
             let mut state = state_clone.lock().await;
             for (_, user) in state.users.iter_mut() {
-                user.send(Message::Text("heartbeat".to_string())).await.unwrap();
+                if user.send(Message::Text("heartbeat".to_string())).await.is_err() {
+                    println!("Error while sending heartbeat");
+                }
             }
         }
     });
-
 
     let router = Router::new()
         .route("/", get(websocket_handler))
         .route("/health", get(|| async { "ok" }))
         .layer(Extension(state));
+
+    println!("Router initialized");
 
 
     let port: u16 = std::env::var("PORT")
@@ -55,6 +58,7 @@ async fn main() {
     .unwrap();
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
+    println!("Starting server on 0.0.0.0:{port}");
     axum_server::bind(addr)
     .serve(router.into_make_service())
     .await
