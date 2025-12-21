@@ -11,9 +11,9 @@ use axum::{
 use futures::{stream::SplitSink, SinkExt, StreamExt};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
-use shuttle_axum::ShuttleAxum;
 use tokio::sync::Mutex;
 use tokio::time::{self, Duration};
+use std::net::SocketAddr;
 
 
 const ALPHABET_AND_NUMBERS: [char; 36] = [
@@ -24,8 +24,8 @@ struct State {
     users: HashMap<String, SplitSink<WebSocket, Message>>,
 }
 
-#[shuttle_runtime::main]
-async fn main() -> ShuttleAxum {
+#[tokio::main]
+async fn main() {
     let state = Arc::new(Mutex::new(State {
         users: HashMap::new(),
     }));
@@ -47,7 +47,18 @@ async fn main() -> ShuttleAxum {
         .route("/", get(websocket_handler))
         .layer(Extension(state));
 
-    Ok(router.into())
+
+
+    // run it with hyper
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:49999")
+        .await
+        .unwrap();
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }
 
 #[derive(Serialize)]
