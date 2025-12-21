@@ -45,18 +45,18 @@ async fn main() {
 
     let router = Router::new()
         .route("/", get(websocket_handler))
+        .route("/health", get(|| async { "ok" }))
         .layer(Extension(state));
 
 
+    let port: u16 = std::env::var("PORT")
+    .unwrap_or_else(|_| "8080".into())
+    .parse()
+    .unwrap();
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
-    // run it with hyper
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:49999")
-        .await
-        .unwrap();
-    axum::serve(
-        listener,
-        router.into_make_service_with_connect_info::<SocketAddr>(),
-    )
+    axum_server::bind(addr)
+    .serve(router.into_make_service())
     .await
     .unwrap();
 }
