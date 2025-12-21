@@ -45,8 +45,8 @@ async fn main() {
     });
 
     let router = Router::new()
-        .route("/", get(websocket_handler))
-        .route("/health", get(|| async { "ok" }))
+        .route("/ws/", get(websocket_handler))
+        .route("/", get(|| async { "ok" }))
         .layer(Extension(state));
 
     println!("Router initialized");
